@@ -14,6 +14,7 @@ RUN apk add --update \
   build-base \
   ca-certificates \
   curl \
+  coreutils \
   gcc \
   libc-dev \
   libgcc \
@@ -50,7 +51,8 @@ RUN cd /tmp/nginx-${NGINX_VERSION} && \
   --with-http_ssl_module \
   --error-log-path=/opt/nginx/logs/error.log \
   --http-log-path=/opt/nginx/logs/access.log \
-  --with-debug && \
+  --with-debug \
+  --with-cc-opt="-Wno-error" && \
   cd /tmp/nginx-${NGINX_VERSION} && make && make install
 
 ###############################
@@ -58,7 +60,7 @@ RUN cd /tmp/nginx-${NGINX_VERSION} && \
 FROM alpine:latest as build-ffmpeg
 ARG FFMPEG_VERSION
 ARG PREFIX=/usr/local
-ARG MAKEFLAGS="-j4"
+ARG MAKEFLAGS="-j6"
 
 # FFmpeg build dependencies.
 RUN	apk add --update \
@@ -79,7 +81,10 @@ RUN	apk add --update \
   wget \
   x264-dev \
   x265-dev \
-  yasm
+  yasm \
+  openssl \
+  openssl-dev \
+  coreutils
 
 RUN echo http://dl-cdn.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories
 RUN apk add --update fdk-aac-dev
