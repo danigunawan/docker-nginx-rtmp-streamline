@@ -27,7 +27,8 @@ RUN apk add --update \
   pcre-dev \
   pkgconf \
   pkgconfig \
-  zlib-dev
+  zlib-dev \
+  wget
 
 # Get nginx source.
 RUN cd /tmp && \
@@ -48,22 +49,21 @@ RUN cd /tmp/nginx-${NGINX_VERSION} && \
   --conf-path=/opt/nginx/nginx.conf \
   --with-threads \
   --with-file-aio \
-  --with-http_ssl_module \
   --error-log-path=/opt/nginx/logs/error.log \
   --http-log-path=/opt/nginx/logs/access.log \
   --with-debug \
   --with-cc-opt="-Wno-error" && \
-  cd /tmp/nginx-${NGINX_VERSION} && make && make install
+  cd /tmp/nginx-${NGINX_VERSION} && make -j4 && make install
 
 ###############################
 # Build the FFmpeg-build image.
 FROM alpine:latest as build-ffmpeg
 ARG FFMPEG_VERSION
 ARG PREFIX=/usr/local
-ARG MAKEFLAGS="-j6"
+ARG MAKEFLAGS="-j4"
 
 # FFmpeg build dependencies.
-RUN	apk add --update \
+RUN	apk add --no-cache \
   build-base \
   freetype-dev \
   lame-dev \
@@ -87,7 +87,7 @@ RUN	apk add --update \
   coreutils
 
 RUN echo http://dl-cdn.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories
-RUN apk add --update fdk-aac-dev
+RUN apk add --no-cache fdk-aac-dev
 
 # Get FFmpeg source.
 RUN cd /tmp/ && \
@@ -129,9 +129,9 @@ RUN rm -rf /var/cache/* /tmp/*
 ##########################
 # Build the release image.
 FROM alpine:latest
-LABEL MAINTAINER Alfred Gutierrez <alf.g.jr@gmail.com>
+LABEL MAINTAINER Jason Miller <me@jason.lv>
 
-RUN apk add --update \
+RUN apk add --no-cache \
   ca-certificates \
   openssl \
   pcre \
@@ -145,11 +145,32 @@ RUN apk add --update \
   opus \
   rtmpdump \
   x264-dev \
-  x265-dev
+  x265-dev \
+  go \
+  git \
+  wget \
+  procps
 
 COPY --from=build-nginx /opt/nginx /opt/nginx
 COPY --from=build-ffmpeg /usr/local /usr/local
-COPY --from=build-ffmpeg /usr/lib/libfdk-aac.so.1 /usr/lib/libfdk-aac.so.1
+COPY --from=build-ffmpeg /usr/lib/libfdk-aac.so.2 /usr/lib/libfdk-aac.so.2
+
+# need this until we move the go build into an onbuild
+RUN apk add build-base
+
+# DASH stuff
+RUN mkdir /opt/ll-app /opt/gocache
+COPY streamline/ /opt/ll-app
+WORKDIR /opt/ll-app
+ENV GOCACHE /opt/gocache
+
+RUN go get -d -v . \
+ && go build \
+ && go get -d -v . \
+ && go build \
+ && rm -rf www logs \
+ && mkdir www logs \
+ && chown -R nobody /opt/gocache /opt/ll-app/www /opt/ll-app/logs
 
 # Add NGINX config and static files.
 ADD nginx.conf /opt/nginx/nginx.conf
@@ -157,6 +178,7 @@ RUN mkdir -p /opt/data && mkdir /www
 ADD static /www/static
 
 EXPOSE 1935
-EXPOSE 80
+EXPOSE 8080
 
-CMD ["/opt/nginx/sbin/nginx"]
+ADD startup.sh /opt/startup.sh
+CMD ["/opt/startup.sh"]
