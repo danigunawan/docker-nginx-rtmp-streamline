@@ -146,10 +146,8 @@ RUN apk add --no-cache \
   rtmpdump \
   x264-dev \
   x265-dev \
-  go \
   git \
-  wget \
-  procps
+  go
 
 COPY --from=build-nginx /opt/nginx /opt/nginx
 COPY --from=build-ffmpeg /usr/local /usr/local
@@ -159,10 +157,10 @@ COPY --from=build-ffmpeg /usr/lib/libfdk-aac.so.2 /usr/lib/libfdk-aac.so.2
 RUN apk add build-base
 
 # DASH stuff
-RUN mkdir /opt/ll-app /opt/gocache
-COPY streamline/ /opt/ll-app
-WORKDIR /opt/ll-app
-ENV GOCACHE /opt/gocache
+RUN mkdir /opt/dash /tmp/gocache
+COPY streamline/ /opt/dash
+WORKDIR /opt/dash
+ENV GOCACHE /tmp/gocache
 
 RUN go get -d -v . \
  && go build \
@@ -170,15 +168,15 @@ RUN go get -d -v . \
  && go build \
  && rm -rf www logs \
  && mkdir www logs \
- && chown -R nobody /opt/gocache /opt/ll-app/www /opt/ll-app/logs
+ && chown -R nobody /tmp/gocache /opt/dash/www /opt/dash/logs
 
 # Add NGINX config and static files.
 ADD nginx.conf /opt/nginx/nginx.conf
-RUN mkdir -p /opt/data && mkdir /www
+RUN mkdir -p /opt/hls && mkdir /www
 ADD static /www/static
 
 EXPOSE 1935
-EXPOSE 8080
+EXPOSE 8888
 
 ADD startup.sh /opt/startup.sh
 CMD ["/opt/startup.sh"]

@@ -1,6 +1,8 @@
 # docker-nginx-rtmp-streamline
 A Dockerfile installing NGINX, nginx-rtmp-module, FFmpeg from source, and Streamline low latency DASH PoC.
+
 Comes with default settings for HLS + CMAF DASH live streaming. Built on Alpine Linux.
+
 
 * Nginx 1.14.1 (compiled from source)
 * nginx-rtmp-module dev branch (compiled from source)
@@ -17,9 +19,10 @@ As a part of the rest of my setup, I use [nginx-proxy container](https://github.
 
 * Build and run container from source:
 ```
-docker build -t nginx-video .
-docker run -it -p 1935:1935 --rm nginx-rtmp
+./deploy.sh
 ```
+
+Modify this script to add TLS or other parameters.
 
 * Stream live content to:
 ```
